@@ -1,0 +1,317 @@
+name: Build PHP
+
+on:
+  workflow_dispatch:
+    inputs:
+      php_version:
+        description: 'PHP version to build (e.g., 8.4.3 or 8.4)'
+        required: true
+        default: '8.4'
+        type: string
+      extensions:
+        description: 'Extensions to include (comma-separated)'
+        required: true
+        default: 'curl,filter,openssl,pcntl,phar,posix,zlib'
+        type: string
+      create_release:
+        description: 'Create a GitHub release with the binaries'
+        required: true
+        default: true
+        type: boolean
+      debug:
+        description: 'Enable debug output'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  SPC_VERSION: '2.7.10'
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  # Linux x86_64 build using Docker
+  build-linux-amd64:
+    name: Linux x86_64
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone static-php-cli
+        run: |
+          git clone --depth 1 --branch ${{ env.SPC_VERSION }} https://github.com/crazywhalecc/static-php-cli.git spc
+
+      - name: Build PHP in Docker
+        run: |
+          cd spc
+          SPC_USE_ARCH=x86_64 ./bin/spc-alpine-docker download \
+            --with-php=${{ inputs.php_version }} \
+            --for-extensions=${{ inputs.extensions }} \
+            --prefer-pre-built \
+            ${{ inputs.debug && '--debug' || '' }}
+          SPC_USE_ARCH=x86_64 ./bin/spc-alpine-docker build \
+            ${{ inputs.extensions }} \
+            --build-cli \
+            ${{ inputs.debug && '--debug' || '' }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: php-${{ inputs.php_version }}-linux-amd64
+          path: spc/buildroot/bin/php
+          retention-days: 1
+
+  # Linux ARM64 build using native ARM runner
+  build-linux-arm64:
+    name: Linux ARM64
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Clone static-php-cli
+        run: |
+          git clone --depth 1 --branch ${{ env.SPC_VERSION }} https://github.com/crazywhalecc/static-php-cli.git spc
+
+      - name: Build PHP in Docker
+        run: |
+          cd spc
+          SPC_USE_ARCH=aarch64 ./bin/spc-alpine-docker download \
+            --with-php=${{ inputs.php_version }} \
+            --for-extensions=${{ inputs.extensions }} \
+            --prefer-pre-built \
+            ${{ inputs.debug && '--debug' || '' }}
+          SPC_USE_ARCH=aarch64 ./bin/spc-alpine-docker build \
+            ${{ inputs.extensions }} \
+            --build-cli \
+            ${{ inputs.debug && '--debug' || '' }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: php-${{ inputs.php_version }}-linux-arm64
+          path: spc/buildroot/bin/php
+          retention-days: 1
+
+  # macOS ARM64 (Apple Silicon) build
+  build-macos-arm64:
+    name: macOS ARM64
+    runs-on: macos-15
+    steps:
+      - name: Clone static-php-cli
+        run: |
+          git clone --depth 1 --branch ${{ env.SPC_VERSION }} https://github.com/crazywhalecc/static-php-cli.git spc
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer
+          extensions: curl, openssl, mbstring
+
+      - name: Install dependencies
+        run: |
+          cd spc
+          composer install --no-dev --classmap-authoritative
+
+      - name: Setup build environment
+        run: |
+          cd spc
+          ./bin/spc doctor --auto-fix
+
+      - name: Download sources
+        run: |
+          cd spc
+          ./bin/spc download \
+            --with-php=${{ inputs.php_version }} \
+            --for-extensions=${{ inputs.extensions }} \
+            --prefer-pre-built \
+            ${{ inputs.debug && '--debug' || '' }}
+
+      - name: Build PHP
+        run: |
+          cd spc
+          ./bin/spc build \
+            ${{ inputs.extensions }} \
+            --build-cli \
+            ${{ inputs.debug && '--debug' || '' }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: php-${{ inputs.php_version }}-darwin-arm64
+          path: spc/buildroot/bin/php
+          retention-days: 1
+
+  # macOS x86_64 (Intel) build
+  build-macos-amd64:
+    name: macOS x86_64
+    runs-on: macos-15-intel
+    steps:
+      - name: Clone static-php-cli
+        run: |
+          git clone --depth 1 --branch ${{ env.SPC_VERSION }} https://github.com/crazywhalecc/static-php-cli.git spc
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer
+          extensions: curl, openssl, mbstring
+
+      - name: Install dependencies
+        run: |
+          cd spc
+          composer install --no-dev --classmap-authoritative
+
+      - name: Setup build environment
+        run: |
+          cd spc
+          ./bin/spc doctor --auto-fix
+
+      - name: Download sources
+        run: |
+          cd spc
+          ./bin/spc download \
+            --with-php=${{ inputs.php_version }} \
+            --for-extensions=${{ inputs.extensions }} \
+            --prefer-pre-built \
+            ${{ inputs.debug && '--debug' || '' }}
+
+      - name: Build PHP
+        run: |
+          cd spc
+          ./bin/spc build \
+            ${{ inputs.extensions }} \
+            --build-cli \
+            ${{ inputs.debug && '--debug' || '' }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: php-${{ inputs.php_version }}-darwin-amd64
+          path: spc/buildroot/bin/php
+          retention-days: 1
+
+  # Windows x64 build
+  build-windows-amd64:
+    name: Windows x64
+    runs-on: windows-latest
+    steps:
+      - name: Clone static-php-cli
+        run: |
+          git clone --depth 1 --branch ${{ env.SPC_VERSION }} https://github.com/crazywhalecc/static-php-cli.git spc
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer
+          extensions: curl, openssl, mbstring
+
+      - name: Install dependencies
+        run: |
+          cd spc
+          composer install --no-dev --classmap-authoritative
+
+      - name: Setup build environment
+        run: |
+          cd spc
+          ./bin/spc doctor
+
+      # Note: Windows doesn't support pcntl and posix extensions
+      - name: Download sources
+        run: |
+          cd spc
+          $extensions = "${{ inputs.extensions }}" -replace 'pcntl,?' -replace 'posix,?' -replace ',,',','
+          $extensions = $extensions.Trim(',')
+          ./bin/spc download --with-php=${{ inputs.php_version }} --for-extensions="$extensions" --prefer-pre-built ${{ inputs.debug && '--debug' || '' }}
+
+      - name: Build PHP
+        run: |
+          cd spc
+          $extensions = "${{ inputs.extensions }}" -replace 'pcntl,?' -replace 'posix,?' -replace ',,',','
+          $extensions = $extensions.Trim(',')
+          ./bin/spc build "$extensions" --build-cli ${{ inputs.debug && '--debug' || '' }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: php-${{ inputs.php_version }}-windows-amd64
+          path: spc/buildroot/bin/php.exe
+          retention-days: 1
+
+  # Create GitHub release with all binaries
+  create-release:
+    name: Create Release
+    needs:
+      - build-linux-amd64
+      - build-linux-arm64
+      - build-macos-arm64
+      - build-macos-amd64
+      - build-windows-amd64
+    runs-on: ubuntu-latest
+    if: ${{ inputs.create_release }}
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release
+
+          # Linux x86_64
+          cp artifacts/php-${{ inputs.php_version }}-linux-amd64/php \
+             release/php-${{ inputs.php_version }}-linux-amd64
+          chmod +x release/php-${{ inputs.php_version }}-linux-amd64
+
+          # Linux ARM64
+          cp artifacts/php-${{ inputs.php_version }}-linux-arm64/php \
+             release/php-${{ inputs.php_version }}-linux-arm64
+          chmod +x release/php-${{ inputs.php_version }}-linux-arm64
+
+          # macOS ARM64
+          cp artifacts/php-${{ inputs.php_version }}-darwin-arm64/php \
+             release/php-${{ inputs.php_version }}-darwin-arm64
+          chmod +x release/php-${{ inputs.php_version }}-darwin-arm64
+
+          # macOS x86_64
+          cp artifacts/php-${{ inputs.php_version }}-darwin-amd64/php \
+             release/php-${{ inputs.php_version }}-darwin-amd64
+          chmod +x release/php-${{ inputs.php_version }}-darwin-amd64
+
+          # Windows x64
+          cp artifacts/php-${{ inputs.php_version }}-windows-amd64/php.exe \
+             release/php-${{ inputs.php_version }}-windows-amd64.exe
+
+          # Generate checksums
+          cd release
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: php-${{ inputs.php_version }}
+          name: PHP ${{ inputs.php_version }}
+          body: |
+            PHP ${{ inputs.php_version }} static binaries for the Upsun CLI.
+
+            ## Included Extensions
+
+            ${{ inputs.extensions }}
+
+            Note: `pcntl` and `posix` are not available on Windows.
+
+            ## Build Details
+
+            - Built with [static-php-cli](https://github.com/crazywhalecc/static-php-cli) v${{ env.SPC_VERSION }}
+            - All binaries are statically linked (no external dependencies)
+            - Linux builds use musl libc for maximum portability
+
+            ## Verification
+
+            Download `SHA256SUMS.txt` and verify:
+            ```bash
+            sha256sum -c SHA256SUMS.txt
+            ```
+          files: release/*
+          fail_on_unmatched_files: true
