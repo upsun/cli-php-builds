@@ -213,18 +213,19 @@ jobs:
           cd spc
           ./bin/spc doctor
 
-      # Note: Windows doesn't support pcntl and posix extensions
+      # Note: Windows doesn't support pcntl and posix extensions.
+      # readline uses libedit in static-php-cli, which requires ncurses (not supported on Windows).
       - name: Download sources
         run: |
           cd spc
-          $extensions = "${{ inputs.extensions }}" -replace 'pcntl,?' -replace 'posix,?' -replace ',,',','
+          $extensions = "${{ inputs.extensions }}" -replace 'pcntl,?' -replace 'posix,?' -replace 'readline,?' -replace ',,',','
           $extensions = $extensions.Trim(',')
           ./bin/spc download --with-php=${{ inputs.php_version }} --for-extensions="$extensions" --prefer-pre-built ${{ inputs.debug && '--debug' || '' }}
 
       - name: Build PHP
         run: |
           cd spc
-          $extensions = "${{ inputs.extensions }}" -replace 'pcntl,?' -replace 'posix,?' -replace ',,',','
+          $extensions = "${{ inputs.extensions }}" -replace 'pcntl,?' -replace 'posix,?' -replace 'readline,?' -replace ',,',','
           $extensions = $extensions.Trim(',')
           ./bin/spc build "$extensions" --build-cli ${{ inputs.debug && '--debug' || '' }}
 
@@ -299,7 +300,7 @@ jobs:
 
             ${{ inputs.extensions }}
 
-            Note: `pcntl` and `posix` are not available on Windows.
+            Note: `pcntl`, `posix`, and `readline` are not available on Windows.
 
             ## Build Details
 
