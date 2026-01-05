@@ -11,7 +11,7 @@ on:
       extensions:
         description: 'Extensions to include (comma-separated)'
         required: true
-        default: 'curl,filter,openssl,pcntl,phar,posix,zlib'
+        default: 'curl,filter,openssl,pcntl,phar,posix,readline,zlib'
         type: string
       create_release:
         description: 'Create a GitHub release with the binaries'
@@ -315,3 +315,4 @@ jobs:
             ```
           files: release/*
           fail_on_unmatched_files: true
+          overwrite_files: true
