@@ -76,7 +76,7 @@ jobs:
             ${{ inputs.debug && '--debug' || '' }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: php-${{ needs.resolve-version.outputs.php_version }}-linux-amd64
           path: spc/buildroot/bin/php
@@ -106,7 +106,7 @@ jobs:
             ${{ inputs.debug && '--debug' || '' }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: php-${{ needs.resolve-version.outputs.php_version }}-linux-arm64
           path: spc/buildroot/bin/php
@@ -157,7 +157,7 @@ jobs:
             ${{ inputs.debug && '--debug' || '' }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: php-${{ needs.resolve-version.outputs.php_version }}-darwin-arm64
           path: spc/buildroot/bin/php
@@ -208,7 +208,7 @@ jobs:
             ${{ inputs.debug && '--debug' || '' }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: php-${{ needs.resolve-version.outputs.php_version }}-darwin-amd64
           path: spc/buildroot/bin/php
@@ -258,7 +258,7 @@ jobs:
           ./bin/spc build "$extensions" --build-cli ${{ inputs.debug && '--debug' || '' }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: php-${{ needs.resolve-version.outputs.php_version }}-windows-amd64
           path: spc/buildroot/bin/php.exe
@@ -282,7 +282,7 @@ jobs:
       PHP_VERSION: ${{ needs.resolve-version.outputs.php_version }}
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
 
@@ -320,7 +320,7 @@ jobs:
           cat SHA256SUMS.txt
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: php-${{ needs.resolve-version.outputs.php_version }}
           name: PHP ${{ needs.resolve-version.outputs.php_version }}
