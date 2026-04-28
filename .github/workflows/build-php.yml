@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       php_version:
-        description: 'PHP version to build (e.g., 8.4.3, or 8.4 to resolve to the latest patch)'
+        description: 'PHP version to build (X.Y.Z, or X.Y to resolve to the latest patch)'
         required: true
         default: '8.4'
         type: string
@@ -39,8 +39,10 @@ jobs:
     steps:
       - name: Resolve to latest patch version
         id: resolve
+        env:
+          INPUT_PHP_VERSION: ${{ inputs.php_version }}
         run: |
-          input='${{ inputs.php_version }}'
+          input="$INPUT_PHP_VERSION"
           if [[ "$input" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             resolved="$input"
           elif [[ "$input" =~ ^[0-9]+\.[0-9]+$ ]]; then
@@ -322,10 +324,10 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: php-${{ needs.resolve-version.outputs.php_version }}
-          name: PHP ${{ needs.resolve-version.outputs.php_version }}
+          tag_name: php-${{ env.PHP_VERSION }}
+          name: PHP ${{ env.PHP_VERSION }}
           body: |
-            PHP ${{ needs.resolve-version.outputs.php_version }} static binaries for the Upsun CLI.
+            PHP ${{ env.PHP_VERSION }} static binaries for the Upsun CLI.
 
             ## Included Extensions
 
