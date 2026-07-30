@@ -222,6 +222,9 @@ jobs:
     needs: resolve-version
     runs-on: windows-latest
     steps:
+      - name: Check out repository code
+        uses: actions/checkout@v7
+
       - name: Clone static-php-cli
         run: |
           git clone --depth 1 --branch ${{ env.SPC_VERSION }} https://github.com/crazywhalecc/static-php-cli.git spc
@@ -237,6 +240,12 @@ jobs:
         run: |
           cd spc
           composer install --no-dev --classmap-authoritative
+
+      # Schannel cannot use a CA file and the Windows certificate store
+      # together, which the CLI needs. This must run before the download step,
+      # which reads the dependencies it changes.
+      - name: Build curl against OpenSSL, not Schannel
+        run: php scripts/patch-spc-windows-curl.php spc
 
       - name: Setup build environment
         run: |
@@ -258,6 +267,18 @@ jobs:
           $extensions = "${{ inputs.extensions }}" -replace 'pcntl,?' -replace 'posix,?' -replace 'readline,?' -replace ',,',','
           $extensions = $extensions.Trim(',')
           ./bin/spc build "$extensions" --build-cli ${{ inputs.debug && '--debug' || '' }}
+
+      # The CLI depends on the SSL backend: only OpenSSL can use a CA file and
+      # the Windows certificate store together.
+      - name: Check the SSL backend
+        run: |
+          $curl = & ./spc/buildroot/bin/php.exe -n -r "echo curl_version()['ssl_version'];"
+          $openssl = & ./spc/buildroot/bin/php.exe -n -r "echo OPENSSL_VERSION_TEXT;"
+          Write-Host "curl: $curl"
+          Write-Host "openssl extension: $openssl"
+          if ($curl -notlike 'OpenSSL/*') {
+            throw "expected curl to be built against OpenSSL, got '$curl'"
+          }
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
