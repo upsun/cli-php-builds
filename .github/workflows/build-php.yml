@@ -220,9 +220,10 @@ jobs:
   build-windows-amd64:
     name: Windows x64
     needs: resolve-version
-    # Not windows-latest: that image now ships Visual Studio 2026, and
-    # static-php-cli only looks for 2022 or 2019, so its doctor check fails.
-    runs-on: windows-2025
+    # Not windows-latest or windows-2025: those images now ship Visual Studio
+    # 2026, and static-php-cli only looks for 2022 or 2019, so its doctor check
+    # fails before anything is built.
+    runs-on: windows-2022
     steps:
       - name: Check out repository code
         uses: actions/checkout@v7
