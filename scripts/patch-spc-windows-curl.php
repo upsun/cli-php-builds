@@ -88,4 +88,20 @@ foreach ($options as $from => $to) {
     $source = str_replace($from, $to, $source);
     echo "set $to\n";
 }
+
+// Use the Windows certificate store when no CA file is set, which is what
+// Schannel did. Only then: given a CA file, curl uses that alone unless asked
+// for both. This keeps verification working if the CLI cannot write its bundle.
+$nativeCA = "'-DCURL_CA_NATIVE=ON '";
+$anchor = "'-DCURL_ENABLE_SSL=ON ' .";
+if (str_contains($source, $nativeCA)) {
+    echo "already set: $nativeCA\n";
+} else {
+    if (substr_count($source, $anchor) !== 1) {
+        fail("expected exactly one $anchor in $curlFile: check the static-php-cli version");
+    }
+    $source = str_replace($anchor, $nativeCA . " .\n                " . $anchor, $source);
+    echo "set $nativeCA\n";
+}
+
 writeFileOrFail($curlFile, $source);
