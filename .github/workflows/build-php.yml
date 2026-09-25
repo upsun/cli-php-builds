@@ -26,6 +26,8 @@ on:
 
 env:
   SPC_VERSION: '2.8.5'
+  # SHA-256 of spc-macos-x86_64.tar.gz in the SPC_VERSION release.
+  SPC_MACOS_X86_64_SHA256: 'e8b798048f62ca4960764196543b60ae703f7174aa418824cf542aeec1d2cd6a'
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
@@ -176,11 +178,10 @@ jobs:
     steps:
       - name: Download static-php-cli
         run: |
-          mkdir spc
-          curl -fsSL "https://github.com/crazywhalecc/static-php-cli/releases/download/${{ env.SPC_VERSION }}/spc-macos-x86_64.tar.gz" \
-            | tar -xz -C spc
-          mkdir spc/bin
-          mv spc/spc spc/bin/spc
+          curl -fsSL -o spc.tar.gz "https://github.com/crazywhalecc/static-php-cli/releases/download/${{ env.SPC_VERSION }}/spc-macos-x86_64.tar.gz"
+          echo "${{ env.SPC_MACOS_X86_64_SHA256 }}  spc.tar.gz" | shasum -a 256 -c
+          mkdir -p spc/bin
+          tar -xzf spc.tar.gz -C spc/bin
           spc/bin/spc --version
 
       - name: Setup build environment
