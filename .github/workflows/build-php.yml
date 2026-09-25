@@ -26,6 +26,8 @@ on:
 
 env:
   SPC_VERSION: '2.8.5'
+  # SHA-256 of spc-macos-x86_64.tar.gz in the SPC_VERSION release.
+  SPC_MACOS_X86_64_SHA256: 'e8b798048f62ca4960764196543b60ae703f7174aa418824cf542aeec1d2cd6a'
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
@@ -166,26 +168,21 @@ jobs:
           retention-days: 1
 
   # macOS x86_64 (Intel) build
+  # Uses the standalone spc binary, as setup-php no longer supports Intel macOS
+  # runners (Homebrew dropped them).
+  # See: https://github.com/shivammathur/setup-php/issues/1112
   build-macos-amd64:
     name: macOS x86_64
     needs: resolve-version
     runs-on: macos-15-intel
     steps:
-      - name: Clone static-php-cli
+      - name: Download static-php-cli
         run: |
-          git clone --depth 1 --branch ${{ env.SPC_VERSION }} https://github.com/crazywhalecc/static-php-cli.git spc
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.4'
-          tools: composer
-          extensions: curl, openssl, mbstring
-
-      - name: Install dependencies
-        run: |
-          cd spc
-          composer install --no-dev --classmap-authoritative
+          curl -fsSL -o spc.tar.gz "https://github.com/crazywhalecc/static-php-cli/releases/download/${{ env.SPC_VERSION }}/spc-macos-x86_64.tar.gz"
+          echo "${{ env.SPC_MACOS_X86_64_SHA256 }}  spc.tar.gz" | shasum -a 256 -c
+          mkdir -p spc/bin
+          tar -xzf spc.tar.gz -C spc/bin
+          spc/bin/spc --version
 
       - name: Setup build environment
         run: |
