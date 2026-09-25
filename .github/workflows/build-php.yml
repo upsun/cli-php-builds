@@ -166,26 +166,22 @@ jobs:
           retention-days: 1
 
   # macOS x86_64 (Intel) build
+  # Uses the standalone spc binary, as setup-php no longer supports Intel macOS
+  # runners (Homebrew dropped them).
+  # See: https://github.com/shivammathur/setup-php/issues/1112
   build-macos-amd64:
     name: macOS x86_64
     needs: resolve-version
     runs-on: macos-15-intel
     steps:
-      - name: Clone static-php-cli
+      - name: Download static-php-cli
         run: |
-          git clone --depth 1 --branch ${{ env.SPC_VERSION }} https://github.com/crazywhalecc/static-php-cli.git spc
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.4'
-          tools: composer
-          extensions: curl, openssl, mbstring
-
-      - name: Install dependencies
-        run: |
-          cd spc
-          composer install --no-dev --classmap-authoritative
+          mkdir spc
+          curl -fsSL "https://github.com/crazywhalecc/static-php-cli/releases/download/${{ env.SPC_VERSION }}/spc-macos-x86_64.tar.gz" \
+            | tar -xz -C spc
+          mkdir spc/bin
+          mv spc/spc spc/bin/spc
+          spc/bin/spc --version
 
       - name: Setup build environment
         run: |
