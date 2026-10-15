@@ -93,21 +93,22 @@ jobs:
             --build-cli \
             ${{ inputs.debug && '--debug' || '' }}
 
-      # Records the version of each source in the build, which
-      # check-updates.yml compares with the latest upstream versions.
-      - name: Record source versions
+      # Collects the binary, and the version of each source in the build,
+      # which check-updates.yml compares with the latest upstream versions.
+      # The Linux build directory is owned by root (from Docker).
+      - name: Collect build output
         shell: bash
         run: |
+          mkdir out
+          cp spc/buildroot/bin/php out/
           jq 'with_entries(select(.value.source_type == "archive" and .key != "frankenphp") | .value = .value.filename)' \
-            spc/downloads/.lock.json | tee spc/buildroot/bin/sources.json
+            spc/downloads/.lock.json | tee out/sources.json
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: php-${{ needs.resolve-version.outputs.php_version }}-linux-amd64
-          path: |
-            spc/buildroot/bin/php
-            spc/buildroot/bin/sources.json
+          path: out/
           retention-days: 1
 
   # Linux ARM64 build using native ARM runner
@@ -133,21 +134,22 @@ jobs:
             --build-cli \
             ${{ inputs.debug && '--debug' || '' }}
 
-      # Records the version of each source in the build, which
-      # check-updates.yml compares with the latest upstream versions.
-      - name: Record source versions
+      # Collects the binary, and the version of each source in the build,
+      # which check-updates.yml compares with the latest upstream versions.
+      # The Linux build directory is owned by root (from Docker).
+      - name: Collect build output
         shell: bash
         run: |
+          mkdir out
+          cp spc/buildroot/bin/php out/
           jq 'with_entries(select(.value.source_type == "archive" and .key != "frankenphp") | .value = .value.filename)' \
-            spc/downloads/.lock.json | tee spc/buildroot/bin/sources.json
+            spc/downloads/.lock.json | tee out/sources.json
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: php-${{ needs.resolve-version.outputs.php_version }}-linux-arm64
-          path: |
-            spc/buildroot/bin/php
-            spc/buildroot/bin/sources.json
+          path: out/
           retention-days: 1
 
   # macOS ARM64 (Apple Silicon) build
@@ -194,21 +196,22 @@ jobs:
             --build-cli \
             ${{ inputs.debug && '--debug' || '' }}
 
-      # Records the version of each source in the build, which
-      # check-updates.yml compares with the latest upstream versions.
-      - name: Record source versions
+      # Collects the binary, and the version of each source in the build,
+      # which check-updates.yml compares with the latest upstream versions.
+      # The Linux build directory is owned by root (from Docker).
+      - name: Collect build output
         shell: bash
         run: |
+          mkdir out
+          cp spc/buildroot/bin/php out/
           jq 'with_entries(select(.value.source_type == "archive" and .key != "frankenphp") | .value = .value.filename)' \
-            spc/downloads/.lock.json | tee spc/buildroot/bin/sources.json
+            spc/downloads/.lock.json | tee out/sources.json
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: php-${{ needs.resolve-version.outputs.php_version }}-darwin-arm64
-          path: |
-            spc/buildroot/bin/php
-            spc/buildroot/bin/sources.json
+          path: out/
           retention-days: 1
 
   # macOS x86_64 (Intel) build
@@ -250,21 +253,22 @@ jobs:
             --build-cli \
             ${{ inputs.debug && '--debug' || '' }}
 
-      # Records the version of each source in the build, which
-      # check-updates.yml compares with the latest upstream versions.
-      - name: Record source versions
+      # Collects the binary, and the version of each source in the build,
+      # which check-updates.yml compares with the latest upstream versions.
+      # The Linux build directory is owned by root (from Docker).
+      - name: Collect build output
         shell: bash
         run: |
+          mkdir out
+          cp spc/buildroot/bin/php out/
           jq 'with_entries(select(.value.source_type == "archive" and .key != "frankenphp") | .value = .value.filename)' \
-            spc/downloads/.lock.json | tee spc/buildroot/bin/sources.json
+            spc/downloads/.lock.json | tee out/sources.json
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: php-${{ needs.resolve-version.outputs.php_version }}-darwin-amd64
-          path: |
-            spc/buildroot/bin/php
-            spc/buildroot/bin/sources.json
+          path: out/
           retention-days: 1
 
   # Windows x64 build
@@ -334,21 +338,22 @@ jobs:
             throw "expected curl to be built against OpenSSL, got '$curl'"
           }
 
-      # Records the version of each source in the build, which
-      # check-updates.yml compares with the latest upstream versions.
-      - name: Record source versions
+      # Collects the binary, and the version of each source in the build,
+      # which check-updates.yml compares with the latest upstream versions.
+      # The Linux build directory is owned by root (from Docker).
+      - name: Collect build output
         shell: bash
         run: |
+          mkdir out
+          cp spc/buildroot/bin/php.exe out/
           jq 'with_entries(select(.value.source_type == "archive" and .key != "frankenphp") | .value = .value.filename)' \
-            spc/downloads/.lock.json | tee spc/buildroot/bin/sources.json
+            spc/downloads/.lock.json | tee out/sources.json
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: php-${{ needs.resolve-version.outputs.php_version }}-windows-amd64
-          path: |
-            spc/buildroot/bin/php.exe
-            spc/buildroot/bin/sources.json
+          path: out/
           retention-days: 1
 
   # Create GitHub release with all binaries
