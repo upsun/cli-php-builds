@@ -33,9 +33,12 @@ These are the minimum extensions required by the "legacy" PHP code in the Upsun 
 
 ### Download a Binary
 
+Releases are tagged `php-{VERSION}-{BUILD}`, where `BUILD` counts the builds of
+a PHP version. Older releases are tagged `php-{VERSION}`.
+
 ```bash
-# Example: Download PHP 8.4.3 for Linux x86_64
-curl -fSL https://github.com/upsun/cli-php-builds/releases/download/php-8.4.3/php-8.4.3-linux-amd64 -o php
+# Example: Download build 1 of PHP 8.5.11 for Linux x86_64
+curl -fSL https://github.com/upsun/cli-php-builds/releases/download/php-8.5.11-1/php-8.5.11-linux-amd64 -o php
 chmod +x php
 ./php -v
 ```
@@ -45,22 +48,45 @@ chmod +x php
 Each release includes a `SHA256SUMS.txt` file:
 
 ```bash
-curl -fSL https://github.com/upsun/cli-php-builds/releases/download/php-8.4.3/SHA256SUMS.txt -o SHA256SUMS.txt
+curl -fSL https://github.com/upsun/cli-php-builds/releases/download/php-8.5.11-1/SHA256SUMS.txt -o SHA256SUMS.txt
 sha256sum -c SHA256SUMS.txt
 ```
 
 ## Building New Versions
 
+### Automatic rebuilds
+
+The **Check for updates** workflow runs daily. It compares the sources of the
+latest release (`sources.json`) with the latest versions that static-php-cli
+would download, including the latest patch release of PHP. If any have changed,
+it builds and releases the same PHP minor version again.
+
+If the check or the build fails, it opens an issue (or comments on an open one).
+
+To move to a new PHP minor version, run a build manually.
+
+### Manual builds
+
 1. Go to **Actions** > **Build PHP**
 2. Click **Run workflow**
-3. Enter the PHP version (e.g., `8.4.3`)
-4. Optionally modify extensions or disable release creation
-5. Click **Run workflow**
+3. Enter the PHP version (e.g., `8.5.11`, or `8.5` for the latest patch), or
+   leave it empty for the minor version of the latest release
+4. Click **Run workflow**
 
 The workflow will:
 1. Build PHP for all 5 platforms in parallel
-2. Create a GitHub release with all binaries
-3. Generate checksums
+2. Create a GitHub release with all binaries, `sources.json` (the source
+   archives used on each platform) and `SHA256SUMS.txt`
+
+Pull requests build all platforms without creating a release.
+
+All libraries are built from source (static-php-cli's pre-built libraries are
+not used), so `sources.json` records exactly what is in each binary.
+
+### Upgrading static-php-cli
+
+Update `SPC_VERSION` and the SHA-256 checksums in both `build-php.yml` and
+`check-updates.yml`.
 
 ## SSL Certificate Handling
 

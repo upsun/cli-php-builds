@@ -4,14 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       php_version:
-        description: 'PHP version to build (X.Y.Z, or X.Y to resolve to the latest patch)'
-        required: true
-        default: '8.4'
-        type: string
-      extensions:
-        description: 'Extensions to include (comma-separated)'
-        required: true
-        default: 'curl,filter,openssl,pcntl,phar,posix,readline,zlib'
+        description: 'PHP version to build (X.Y.Z, or X.Y to resolve to the latest patch). Defaults to the minor version of the latest release.'
+        required: false
         type: string
       create_release:
         description: 'Create a GitHub release with the binaries'
@@ -23,11 +17,24 @@ on:
         required: false
         default: false
         type: boolean
+  workflow_call:
+    inputs:
+      php_version:
+        type: string
+        required: true
+      create_release:
+        type: boolean
+        default: false
+  pull_request:
+
+permissions:
+  contents: read
 
 env:
   SPC_VERSION: '2.8.5'
   # SHA-256 of spc-macos-x86_64.tar.gz in the SPC_VERSION release.
   SPC_MACOS_X86_64_SHA256: 'e8b798048f62ca4960764196543b60ae703f7174aa418824cf542aeec1d2cd6a'
+  EXTENSIONS: 'curl,filter,openssl,pcntl,phar,posix,readline,zlib'
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
@@ -39,12 +46,19 @@ jobs:
     outputs:
       php_version: ${{ steps.resolve.outputs.php_version }}
     steps:
+      - name: Check out repository code
+        uses: actions/checkout@v7
+
       - name: Resolve to latest patch version
         id: resolve
         env:
+          GH_REPO: ${{ github.repository }}
           INPUT_PHP_VERSION: ${{ inputs.php_version }}
         run: |
           input="$INPUT_PHP_VERSION"
+          if [[ -z "$input" ]]; then
+            input=$(scripts/latest-release.sh | sed -E 's/^php-([0-9]+\.[0-9]+)\..*/\1/')
+          fi
           if [[ "$input" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             resolved="$input"
           elif [[ "$input" =~ ^[0-9]+\.[0-9]+$ ]]; then
@@ -71,19 +85,30 @@ jobs:
           cd spc
           SPC_USE_ARCH=x86_64 ./bin/spc-alpine-docker download \
             --with-php=${{ needs.resolve-version.outputs.php_version }} \
-            --for-extensions=${{ inputs.extensions }} \
-            --prefer-pre-built \
+            --for-extensions="$EXTENSIONS" \
+            --without-suggestions --no-alt \
             ${{ inputs.debug && '--debug' || '' }}
           SPC_USE_ARCH=x86_64 ./bin/spc-alpine-docker build \
-            ${{ inputs.extensions }} \
+            "$EXTENSIONS" \
             --build-cli \
             ${{ inputs.debug && '--debug' || '' }}
+
+      # Collects the binary, and the version of each source in the build,
+      # which check-updates.yml compares with the latest upstream versions.
+      # On Linux, Docker creates the build directory as root.
+      - name: Collect build output
+        shell: bash
+        run: |
+          mkdir out
+          cp spc/buildroot/bin/php out/
+          jq 'with_entries(select(.value.lock_as == 1 and .value.source_type == "archive" and .key != "frankenphp") | .value = .value.filename)' \
+            spc/downloads/.lock.json | tee out/sources.json
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: php-${{ needs.resolve-version.outputs.php_version }}-linux-amd64
-          path: spc/buildroot/bin/php
+          path: out/
           retention-days: 1
 
   # Linux ARM64 build using native ARM runner
@@ -101,19 +126,30 @@ jobs:
           cd spc
           SPC_USE_ARCH=aarch64 ./bin/spc-alpine-docker download \
             --with-php=${{ needs.resolve-version.outputs.php_version }} \
-            --for-extensions=${{ inputs.extensions }} \
-            --prefer-pre-built \
+            --for-extensions="$EXTENSIONS" \
+            --without-suggestions --no-alt \
             ${{ inputs.debug && '--debug' || '' }}
           SPC_USE_ARCH=aarch64 ./bin/spc-alpine-docker build \
-            ${{ inputs.extensions }} \
+            "$EXTENSIONS" \
             --build-cli \
             ${{ inputs.debug && '--debug' || '' }}
+
+      # Collects the binary, and the version of each source in the build,
+      # which check-updates.yml compares with the latest upstream versions.
+      # On Linux, Docker creates the build directory as root.
+      - name: Collect build output
+        shell: bash
+        run: |
+          mkdir out
+          cp spc/buildroot/bin/php out/
+          jq 'with_entries(select(.value.lock_as == 1 and .value.source_type == "archive" and .key != "frankenphp") | .value = .value.filename)' \
+            spc/downloads/.lock.json | tee out/sources.json
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: php-${{ needs.resolve-version.outputs.php_version }}-linux-arm64
-          path: spc/buildroot/bin/php
+          path: out/
           retention-days: 1
 
   # macOS ARM64 (Apple Silicon) build
@@ -148,23 +184,34 @@ jobs:
           cd spc
           ./bin/spc download \
             --with-php=${{ needs.resolve-version.outputs.php_version }} \
-            --for-extensions=${{ inputs.extensions }} \
-            --prefer-pre-built \
+            --for-extensions="$EXTENSIONS" \
+            --without-suggestions --no-alt \
             ${{ inputs.debug && '--debug' || '' }}
 
       - name: Build PHP
         run: |
           cd spc
           ./bin/spc build \
-            ${{ inputs.extensions }} \
+            "$EXTENSIONS" \
             --build-cli \
             ${{ inputs.debug && '--debug' || '' }}
+
+      # Collects the binary, and the version of each source in the build,
+      # which check-updates.yml compares with the latest upstream versions.
+      # On Linux, Docker creates the build directory as root.
+      - name: Collect build output
+        shell: bash
+        run: |
+          mkdir out
+          cp spc/buildroot/bin/php out/
+          jq 'with_entries(select(.value.lock_as == 1 and .value.source_type == "archive" and .key != "frankenphp") | .value = .value.filename)' \
+            spc/downloads/.lock.json | tee out/sources.json
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: php-${{ needs.resolve-version.outputs.php_version }}-darwin-arm64
-          path: spc/buildroot/bin/php
+          path: out/
           retention-days: 1
 
   # macOS x86_64 (Intel) build
@@ -194,23 +241,34 @@ jobs:
           cd spc
           ./bin/spc download \
             --with-php=${{ needs.resolve-version.outputs.php_version }} \
-            --for-extensions=${{ inputs.extensions }} \
-            --prefer-pre-built \
+            --for-extensions="$EXTENSIONS" \
+            --without-suggestions --no-alt \
             ${{ inputs.debug && '--debug' || '' }}
 
       - name: Build PHP
         run: |
           cd spc
           ./bin/spc build \
-            ${{ inputs.extensions }} \
+            "$EXTENSIONS" \
             --build-cli \
             ${{ inputs.debug && '--debug' || '' }}
+
+      # Collects the binary, and the version of each source in the build,
+      # which check-updates.yml compares with the latest upstream versions.
+      # On Linux, Docker creates the build directory as root.
+      - name: Collect build output
+        shell: bash
+        run: |
+          mkdir out
+          cp spc/buildroot/bin/php out/
+          jq 'with_entries(select(.value.lock_as == 1 and .value.source_type == "archive" and .key != "frankenphp") | .value = .value.filename)' \
+            spc/downloads/.lock.json | tee out/sources.json
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: php-${{ needs.resolve-version.outputs.php_version }}-darwin-amd64
-          path: spc/buildroot/bin/php
+          path: out/
           retention-days: 1
 
   # Windows x64 build
@@ -257,14 +315,14 @@ jobs:
       - name: Download sources
         run: |
           cd spc
-          $extensions = "${{ inputs.extensions }}" -replace 'pcntl,?' -replace 'posix,?' -replace 'readline,?' -replace ',,',','
+          $extensions = $env:EXTENSIONS -replace 'pcntl,?' -replace 'posix,?' -replace 'readline,?' -replace ',,',','
           $extensions = $extensions.Trim(',')
-          ./bin/spc download --with-php=${{ needs.resolve-version.outputs.php_version }} --for-extensions="$extensions" --prefer-pre-built ${{ inputs.debug && '--debug' || '' }}
+          ./bin/spc download --with-php=${{ needs.resolve-version.outputs.php_version }} --for-extensions="$extensions" --without-suggestions --no-alt ${{ inputs.debug && '--debug' || '' }}
 
       - name: Build PHP
         run: |
           cd spc
-          $extensions = "${{ inputs.extensions }}" -replace 'pcntl,?' -replace 'posix,?' -replace 'readline,?' -replace ',,',','
+          $extensions = $env:EXTENSIONS -replace 'pcntl,?' -replace 'posix,?' -replace 'readline,?' -replace ',,',','
           $extensions = $extensions.Trim(',')
           ./bin/spc build "$extensions" --build-cli ${{ inputs.debug && '--debug' || '' }}
 
@@ -280,11 +338,22 @@ jobs:
             throw "expected curl to be built against OpenSSL, got '$curl'"
           }
 
+      # Collects the binary, and the version of each source in the build,
+      # which check-updates.yml compares with the latest upstream versions.
+      # On Linux, Docker creates the build directory as root.
+      - name: Collect build output
+        shell: bash
+        run: |
+          mkdir out
+          cp spc/buildroot/bin/php.exe out/
+          jq 'with_entries(select(.value.lock_as == 1 and .value.source_type == "archive" and .key != "frankenphp") | .value = .value.filename)' \
+            spc/downloads/.lock.json | tee out/sources.json
+
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: php-${{ needs.resolve-version.outputs.php_version }}-windows-amd64
-          path: spc/buildroot/bin/php.exe
+          path: out/
           retention-days: 1
 
   # Create GitHub release with all binaries
@@ -304,6 +373,20 @@ jobs:
     env:
       PHP_VERSION: ${{ needs.resolve-version.outputs.php_version }}
     steps:
+      # Each build gets a new tag (php-X.Y.Z-N), so that released binaries
+      # never change.
+      - name: Choose the release tag
+        id: tag
+        env:
+          GH_REPO: ${{ github.repository }}
+        run: |
+          last=$(gh release list --limit 1000 --json tagName --jq '.[].tagName' \
+            | sed -nE "s/^php-${PHP_VERSION//./\\.}-([0-9]+)$/\1/p" | sort -n | tail -n 1)
+          build=$(( ${last:-0} + 1 ))
+          echo "Release tag: php-${PHP_VERSION}-${build}"
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+          echo "tag=php-${PHP_VERSION}-${build}" >> "$GITHUB_OUTPUT"
+
       - name: Download all artifacts
         uses: actions/download-artifact@v8
         with:
@@ -337,37 +420,46 @@ jobs:
           cp artifacts/php-${PHP_VERSION}-windows-amd64/php.exe \
              release/php-${PHP_VERSION}-windows-amd64.exe
 
+          # Source versions, by platform
+          for platform in linux-amd64 linux-arm64 darwin-arm64 darwin-amd64 windows-amd64; do
+            jq --arg platform "$platform" '{($platform): .}' "artifacts/php-${PHP_VERSION}-${platform}/sources.json"
+          done | jq -s add > release/sources.json
+          cat release/sources.json
+
           # Generate checksums
           cd release
           sha256sum * > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
+      # Fails if another build created the same tag in the meantime.
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: php-${{ env.PHP_VERSION }}
-          name: PHP ${{ env.PHP_VERSION }}
-          body: |
-            PHP ${{ env.PHP_VERSION }} static binaries for the Upsun CLI.
+        env:
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          BUILD: ${{ steps.tag.outputs.build }}
+        run: |
+          cat > notes.md <<EOF
+          PHP ${PHP_VERSION} static binaries for the Upsun CLI.
 
-            ## Included Extensions
+          ## Included Extensions
 
-            ${{ inputs.extensions }}
+          ${EXTENSIONS}
 
-            Note: `pcntl`, `posix`, and `readline` are not available on Windows.
+          Note: \`pcntl\`, \`posix\`, and \`readline\` are not available on Windows.
 
-            ## Build Details
+          ## Build Details
 
-            - Built with [static-php-cli](https://github.com/crazywhalecc/static-php-cli) v${{ env.SPC_VERSION }}
-            - All binaries are statically linked (no external dependencies)
-            - Linux builds use musl libc for maximum portability
+          - Built with [static-php-cli](https://github.com/crazywhalecc/static-php-cli) v${SPC_VERSION}
+          - All binaries are statically linked (no external dependencies)
+          - Linux builds use musl libc for maximum portability
+          - \`sources.json\` lists the source archives used on each platform
 
-            ## Verification
+          ## Verification
 
-            Download `SHA256SUMS.txt` and verify:
-            ```bash
-            sha256sum -c SHA256SUMS.txt
-            ```
-          files: release/*
-          fail_on_unmatched_files: true
-          overwrite_files: true
+          Download \`SHA256SUMS.txt\` and verify:
+          \`\`\`bash
+          sha256sum -c SHA256SUMS.txt
+          \`\`\`
+          EOF
+          gh release create "$TAG" release/* --target "$GITHUB_SHA" \
+            --title "PHP ${PHP_VERSION} (build ${BUILD})" --notes-file notes.md
