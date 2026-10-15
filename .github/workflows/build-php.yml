@@ -101,7 +101,7 @@ jobs:
         run: |
           mkdir out
           cp spc/buildroot/bin/php out/
-          jq 'with_entries(select(.value.source_type == "archive" and .key != "frankenphp") | .value = .value.filename)' \
+          jq 'with_entries(select(.value.lock_as == 1 and .value.source_type == "archive" and .key != "frankenphp") | .value = .value.filename)' \
             spc/downloads/.lock.json | tee out/sources.json
 
       - name: Upload artifact
@@ -142,7 +142,7 @@ jobs:
         run: |
           mkdir out
           cp spc/buildroot/bin/php out/
-          jq 'with_entries(select(.value.source_type == "archive" and .key != "frankenphp") | .value = .value.filename)' \
+          jq 'with_entries(select(.value.lock_as == 1 and .value.source_type == "archive" and .key != "frankenphp") | .value = .value.filename)' \
             spc/downloads/.lock.json | tee out/sources.json
 
       - name: Upload artifact
@@ -204,7 +204,7 @@ jobs:
         run: |
           mkdir out
           cp spc/buildroot/bin/php out/
-          jq 'with_entries(select(.value.source_type == "archive" and .key != "frankenphp") | .value = .value.filename)' \
+          jq 'with_entries(select(.value.lock_as == 1 and .value.source_type == "archive" and .key != "frankenphp") | .value = .value.filename)' \
             spc/downloads/.lock.json | tee out/sources.json
 
       - name: Upload artifact
@@ -261,7 +261,7 @@ jobs:
         run: |
           mkdir out
           cp spc/buildroot/bin/php out/
-          jq 'with_entries(select(.value.source_type == "archive" and .key != "frankenphp") | .value = .value.filename)' \
+          jq 'with_entries(select(.value.lock_as == 1 and .value.source_type == "archive" and .key != "frankenphp") | .value = .value.filename)' \
             spc/downloads/.lock.json | tee out/sources.json
 
       - name: Upload artifact
@@ -346,7 +346,7 @@ jobs:
         run: |
           mkdir out
           cp spc/buildroot/bin/php.exe out/
-          jq 'with_entries(select(.value.source_type == "archive" and .key != "frankenphp") | .value = .value.filename)' \
+          jq 'with_entries(select(.value.lock_as == 1 and .value.source_type == "archive" and .key != "frankenphp") | .value = .value.filename)' \
             spc/downloads/.lock.json | tee out/sources.json
 
       - name: Upload artifact

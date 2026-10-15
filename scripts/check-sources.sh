@@ -13,10 +13,13 @@ workdir=$(mktemp -d)
 trap 'rm -rf "$workdir"' EXIT
 cd "$workdir"
 
-if ! gh release download "$tag" --repo "$repo" --pattern sources.json >&2; then
+# Releases from before sources.json was recorded are rebuilt.
+assets=$(gh release view "$tag" --repo "$repo" --json assets --jq '.assets[].name')
+if ! grep -qx sources.json <<<"$assets"; then
   echo "$tag: no sources.json"
   exit
 fi
+gh release download "$tag" --repo "$repo" --pattern sources.json
 
 sources=$(jq -r '[.[] | keys[]] | unique | join(",")' sources.json)
 "$spc" download "$sources" --with-php="$minor" >&2
