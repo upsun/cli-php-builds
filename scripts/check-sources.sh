@@ -22,7 +22,7 @@ fi
 gh release download "$tag" --repo "$repo" --pattern sources.json
 
 sources=$(jq -r '[.[] | keys[]] | unique | join(",")' sources.json)
-"$spc" download "$sources" --with-php="$minor" >&2
+"$spc" download "$sources" --with-php="$minor" --no-alt >&2
 
 jq -r --slurpfile latest downloads/.lock.json '
   .[] | to_entries[]

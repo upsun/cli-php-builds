@@ -10,6 +10,11 @@ on:
 permissions:
   contents: read
 
+# Two checks at once would both rebuild the same release.
+concurrency:
+  group: check-updates
+  cancel-in-progress: false
+
 env:
   # Keep in sync with build-php.yml.
   SPC_VERSION: '2.8.5'
@@ -20,9 +25,20 @@ jobs:
   check:
     name: Check sources
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
     outputs:
       php_version: ${{ steps.check.outputs.php_version }}
     steps:
+      # GitHub disables scheduled workflows in public repositories after 60
+      # days without activity. Enabling the workflow resets that period.
+      - name: Keep the schedule enabled
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow enable check-updates.yml
+
       - name: Check out repository code
         uses: actions/checkout@v7
 

@@ -86,7 +86,7 @@ jobs:
           SPC_USE_ARCH=x86_64 ./bin/spc-alpine-docker download \
             --with-php=${{ needs.resolve-version.outputs.php_version }} \
             --for-extensions="$EXTENSIONS" \
-            --without-suggestions \
+            --without-suggestions --no-alt \
             ${{ inputs.debug && '--debug' || '' }}
           SPC_USE_ARCH=x86_64 ./bin/spc-alpine-docker build \
             "$EXTENSIONS" \
@@ -95,7 +95,7 @@ jobs:
 
       # Collects the binary, and the version of each source in the build,
       # which check-updates.yml compares with the latest upstream versions.
-      # The Linux build directory is owned by root (from Docker).
+      # On Linux, Docker creates the build directory as root.
       - name: Collect build output
         shell: bash
         run: |
@@ -127,7 +127,7 @@ jobs:
           SPC_USE_ARCH=aarch64 ./bin/spc-alpine-docker download \
             --with-php=${{ needs.resolve-version.outputs.php_version }} \
             --for-extensions="$EXTENSIONS" \
-            --without-suggestions \
+            --without-suggestions --no-alt \
             ${{ inputs.debug && '--debug' || '' }}
           SPC_USE_ARCH=aarch64 ./bin/spc-alpine-docker build \
             "$EXTENSIONS" \
@@ -136,7 +136,7 @@ jobs:
 
       # Collects the binary, and the version of each source in the build,
       # which check-updates.yml compares with the latest upstream versions.
-      # The Linux build directory is owned by root (from Docker).
+      # On Linux, Docker creates the build directory as root.
       - name: Collect build output
         shell: bash
         run: |
@@ -185,7 +185,7 @@ jobs:
           ./bin/spc download \
             --with-php=${{ needs.resolve-version.outputs.php_version }} \
             --for-extensions="$EXTENSIONS" \
-            --without-suggestions \
+            --without-suggestions --no-alt \
             ${{ inputs.debug && '--debug' || '' }}
 
       - name: Build PHP
@@ -198,7 +198,7 @@ jobs:
 
       # Collects the binary, and the version of each source in the build,
       # which check-updates.yml compares with the latest upstream versions.
-      # The Linux build directory is owned by root (from Docker).
+      # On Linux, Docker creates the build directory as root.
       - name: Collect build output
         shell: bash
         run: |
@@ -242,7 +242,7 @@ jobs:
           ./bin/spc download \
             --with-php=${{ needs.resolve-version.outputs.php_version }} \
             --for-extensions="$EXTENSIONS" \
-            --without-suggestions \
+            --without-suggestions --no-alt \
             ${{ inputs.debug && '--debug' || '' }}
 
       - name: Build PHP
@@ -255,7 +255,7 @@ jobs:
 
       # Collects the binary, and the version of each source in the build,
       # which check-updates.yml compares with the latest upstream versions.
-      # The Linux build directory is owned by root (from Docker).
+      # On Linux, Docker creates the build directory as root.
       - name: Collect build output
         shell: bash
         run: |
@@ -317,7 +317,7 @@ jobs:
           cd spc
           $extensions = $env:EXTENSIONS -replace 'pcntl,?' -replace 'posix,?' -replace 'readline,?' -replace ',,',','
           $extensions = $extensions.Trim(',')
-          ./bin/spc download --with-php=${{ needs.resolve-version.outputs.php_version }} --for-extensions="$extensions" --without-suggestions ${{ inputs.debug && '--debug' || '' }}
+          ./bin/spc download --with-php=${{ needs.resolve-version.outputs.php_version }} --for-extensions="$extensions" --without-suggestions --no-alt ${{ inputs.debug && '--debug' || '' }}
 
       - name: Build PHP
         run: |
@@ -340,7 +340,7 @@ jobs:
 
       # Collects the binary, and the version of each source in the build,
       # which check-updates.yml compares with the latest upstream versions.
-      # The Linux build directory is owned by root (from Docker).
+      # On Linux, Docker creates the build directory as root.
       - name: Collect build output
         shell: bash
         run: |
@@ -370,10 +370,6 @@ jobs:
     if: ${{ inputs.create_release }}
     permissions:
       contents: write
-    # Avoids two builds choosing the same tag.
-    concurrency:
-      group: create-release
-      cancel-in-progress: false
     env:
       PHP_VERSION: ${{ needs.resolve-version.outputs.php_version }}
     steps:
@@ -435,33 +431,35 @@ jobs:
           sha256sum * > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
+      # Fails if another build created the same tag in the meantime.
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          name: PHP ${{ env.PHP_VERSION }} (build ${{ steps.tag.outputs.build }})
-          body: |
-            PHP ${{ env.PHP_VERSION }} static binaries for the Upsun CLI.
+        env:
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          BUILD: ${{ steps.tag.outputs.build }}
+        run: |
+          cat > notes.md <<EOF
+          PHP ${PHP_VERSION} static binaries for the Upsun CLI.
 
-            ## Included Extensions
+          ## Included Extensions
 
-            ${{ env.EXTENSIONS }}
+          ${EXTENSIONS}
 
-            Note: `pcntl`, `posix`, and `readline` are not available on Windows.
+          Note: \`pcntl\`, \`posix\`, and \`readline\` are not available on Windows.
 
-            ## Build Details
+          ## Build Details
 
-            - Built with [static-php-cli](https://github.com/crazywhalecc/static-php-cli) v${{ env.SPC_VERSION }}
-            - All binaries are statically linked (no external dependencies)
-            - Linux builds use musl libc for maximum portability
-            - `sources.json` lists the source archives used on each platform
+          - Built with [static-php-cli](https://github.com/crazywhalecc/static-php-cli) v${SPC_VERSION}
+          - All binaries are statically linked (no external dependencies)
+          - Linux builds use musl libc for maximum portability
+          - \`sources.json\` lists the source archives used on each platform
 
-            ## Verification
+          ## Verification
 
-            Download `SHA256SUMS.txt` and verify:
-            ```bash
-            sha256sum -c SHA256SUMS.txt
-            ```
-          files: release/*
-          fail_on_unmatched_files: true
-          overwrite_files: false
+          Download \`SHA256SUMS.txt\` and verify:
+          \`\`\`bash
+          sha256sum -c SHA256SUMS.txt
+          \`\`\`
+          EOF
+          gh release create "$TAG" release/* --target "$GITHUB_SHA" \
+            --title "PHP ${PHP_VERSION} (build ${BUILD})" --notes-file notes.md
