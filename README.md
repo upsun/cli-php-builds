@@ -91,23 +91,17 @@ Update `SPC_VERSION` and the SHA-256 checksums in both `build-php.yml` and
 ## SSL Certificate Handling
 
 - **Linux/macOS**: static-php-cli automatically uses the system CA bundle
-- **Windows**: Requires explicit `cacert.pem` configuration (handled by the CLI)
+- **Windows**: curl is built with Schannel (static-php-cli's default), which
+  verifies certificates with Windows itself: its certificate store, including
+  roots installed by an organization, and its distrust and revocation lists.
 
-### Windows SSL backend
+The build fails if curl on Windows is not built with Schannel.
 
-static-php-cli builds curl with Schannel on Windows. These builds change that to
-OpenSSL, which is already built for the `openssl` extension, using
-`scripts/patch-spc-windows-curl.php`.
-
-Schannel verifies against a CA file *instead of* the Windows certificate store,
-and refuses a file larger than 1 MiB. The CLI has to pass a CA file, because the
-`openssl` extension cannot read the store at all, so with Schannel a root
-certificate installed by an organization is never trusted. curl built against
-OpenSSL loads a CA file and the Windows stores together, and has no size limit.
-
-The patch fails the build if static-php-cli changes in a way it does not expect,
-rather than quietly producing a Schannel build. See
-[upsun/cli#110](https://github.com/upsun/cli/issues/110).
+Given a CA file, Schannel verifies against the file *instead of* the store.
+PHP's curl extension sets one (`CURLOPT_CAINFO`) on every handle from the
+`openssl.cafile` or `curl.cainfo` setting, so the CLI sets neither. The
+`openssl` extension (PHP streams) cannot read the store, so the CLI makes
+HTTPS requests with curl only.
 
 ## License
 
