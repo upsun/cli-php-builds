@@ -280,9 +280,6 @@ jobs:
     # fails before anything is built.
     runs-on: windows-2022
     steps:
-      - name: Check out repository code
-        uses: actions/checkout@v7
-
       - name: Clone static-php-cli
         run: |
           git clone --depth 1 --branch ${{ env.SPC_VERSION }} https://github.com/crazywhalecc/static-php-cli.git spc

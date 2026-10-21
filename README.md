@@ -94,11 +94,14 @@ Update `SPC_VERSION` and the SHA-256 checksums in both `build-php.yml` and
 - **Windows**: curl is built with Schannel (static-php-cli's default), which
   verifies certificates with Windows itself: its certificate store, including
   roots installed by an organization, and its distrust and revocation lists.
-  The `openssl` extension cannot read the store, so PHP streams need a CA file.
 
-The build fails if curl on Windows is not built with Schannel. Given a CA file
-(`CURLOPT_CAINFO`, which PHP sets from `openssl.cafile`), Schannel verifies
-against the file *instead of* the store, so the CLI does not set one.
+The build fails if curl on Windows is not built with Schannel.
+
+Given a CA file, Schannel verifies against the file *instead of* the store.
+PHP's curl extension sets one (`CURLOPT_CAINFO`) on every handle from the
+`openssl.cafile` or `curl.cainfo` setting, so the CLI sets neither. The
+`openssl` extension (PHP streams) cannot read the store, so the CLI makes
+HTTPS requests with curl only.
 
 ## License
 
